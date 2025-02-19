@@ -121,4 +121,28 @@ contract DSCEngineTest is Test {
 
         vm.stopPrank();
     }
+
+    function testDepositCollateralTransfersFromUserToContract() public {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+
+        // Step 1: Record balances before deposit
+        uint256 contractBalanceBefore = ERC20Mock(weth).balanceOf(address(dsce));
+        uint256 userBalanceBefore = ERC20Mock(weth).balanceOf(USER);
+
+        // Step 2: Deposit collateral
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+
+        // Step 3: Record balances after deposit
+        uint256 contractBalanceAfter = ERC20Mock(weth).balanceOf(address(dsce));
+        uint256 userBalanceAfter = ERC20Mock(weth).balanceOf(USER);
+
+        // Step 4: Check contract received the correct amount
+        assertEq(contractBalanceAfter, contractBalanceBefore + AMOUNT_COLLATERAL, "Contract balance should increase");
+
+        // Step 5: Check user's balance decreased by the correct amount
+        assertEq(userBalanceAfter, userBalanceBefore - AMOUNT_COLLATERAL, "User balance should decrease");
+
+        vm.stopPrank();
+    }
 }
