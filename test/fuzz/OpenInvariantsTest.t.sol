@@ -1,8 +1,8 @@
-// // SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 
 // // Contains properties of the system that should always hold
 
-// pragma solidity 0.8.19;
+pragma solidity 0.8.19;
 
 // import {Test, console} from "forge-std/Test.sol";
 // import {StdInvariant} from "forge-std/StdInvariant.sol";
