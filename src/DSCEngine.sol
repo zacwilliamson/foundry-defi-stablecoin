@@ -319,10 +319,6 @@ contract DSCEngine is ReentrancyGuard {
         collateralValueInUsd = getAccountCollateralValue(user);
     }
 
-    //////////////////////////////////////////
-    //   Public & External View Functions   //
-    //////////////////////////////////////////
-
     function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
         internal
         pure

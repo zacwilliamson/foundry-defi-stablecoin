@@ -337,4 +337,59 @@ contract DSCEngineTest is Test {
         (uint256 totalDscMintedAfter,) = dsce.getAccountInformation(USER);
         assertEq(totalDscMintedAfter, 0, "s_DSCMinted should be zero after burning full amount");
     }
+
+    /////////////////////////////
+    // redeemCollateral Tests  //
+    /////////////////////////////
+
+    function testRedeemCollateralRevertsIfZeroAmount() public mintedDsc {
+        // Act & Assert: Expect revert when redeeming zero collateral
+        vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
+        dsce.redeemCollateral(weth, 0);
+    }
+
+    function testRedeemCollateralUpdatesUserBalance() public mintedDsc {
+        // Arrange: Get initial balance
+        uint256 initialBalance = dsce.getCollateralBalanceOfUser(USER, weth);
+
+        // Act: Redeem collateral
+        uint256 amountToWithdraw = (AMOUNT_COLLATERAL * 50) / 100; // Withdraw 50% of collateral
+        dsce.redeemCollateral(weth, amountToWithdraw);
+
+        // Assert: Check balance after redemption
+        uint256 finalBalance = dsce.getCollateralBalanceOfUser(USER, weth);
+        uint256 expectedBalance = initialBalance - amountToWithdraw;
+        assertEq(finalBalance, expectedBalance, "User's collateral balance should be reduced by the redeemed amount");
+    }
+
+    function testRedeemCollateralTransfersToUser() public mintedDsc {
+        // Arrange: Get initial balances
+        uint256 initialUserBalance = ERC20Mock(weth).balanceOf(USER);
+        uint256 initialContractBalance = ERC20Mock(weth).balanceOf(address(dsce));
+
+        // Act: Redeem collateral
+        uint256 amountToWithdraw = (AMOUNT_COLLATERAL * 50) / 100; // Withdraw 50% of collateral
+        dsce.redeemCollateral(weth, amountToWithdraw);
+
+        // Assert: Check balances after redemption
+        uint256 finalUserBalance = ERC20Mock(weth).balanceOf(USER);
+        uint256 finalContractBalance = ERC20Mock(weth).balanceOf(address(dsce));
+
+        assertEq(
+            finalUserBalance, initialUserBalance + amountToWithdraw, "User's balance should increase by redeemed amount"
+        );
+        assertEq(
+            finalContractBalance,
+            initialContractBalance - amountToWithdraw,
+            "Contract balance should decrease by redeemed amount"
+        );
+    }
+
+    function testRedeemCollateralEmitsEvent() public mintedDsc {
+        // Act & Assert: Expect CollateralRedeemed event to be emitted
+        uint256 amountToWithdraw = (AMOUNT_COLLATERAL * 50) / 100;
+        vm.expectEmit(true, true, true, true, address(dsce));
+        emit CollateralRedeemed(USER, USER, weth, amountToWithdraw);
+        dsce.redeemCollateral(weth, amountToWithdraw);
+    }
 }
