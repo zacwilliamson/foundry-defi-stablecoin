@@ -21,6 +21,7 @@ contract DSCEngineTest is Test {
     address btcUsdPriceFeed;
     address public USER = makeAddr("user");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
+    // actually 100 DSC, ether writes it in a 18 decimal value because DSC follows the same decimal standard as ETH.
     uint256 public constant AMOUNT_TO_MINT = 100 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
 
@@ -188,6 +189,74 @@ contract DSCEngineTest is Test {
     }
 
     ///////////////////////////////////
-    // mintDsc Tests //
+    // mintDsc Tests                 //
     ///////////////////////////////////
+
+    function testMintDscRevertsIfAmountIsZero() public {
+        // Arrange: Deposit collateral first
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+
+        // Act & Assert: Try to mint 0 DSC and expect revert
+        vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
+        dsce.mintDsc(0);
+
+        vm.stopPrank();
+    }
+
+    // confirms that the internal state of the dsce has been updated
+    function testMintDscUpdatesDSCMinted() public {
+        // Arrange: Deposit collateral first
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+
+        // Act: Mint DSC
+        dsce.mintDsc(AMOUNT_TO_MINT);
+
+        // Assert: Check if s_DSCMinted is updated
+        (uint256 totalDscMinted,) = dsce.getAccountInformation(USER);
+        assertEq(totalDscMinted, AMOUNT_TO_MINT, "s_DSCMinted should be equal to the amount minted");
+
+        vm.stopPrank();
+    }
+
+    function testMintDscRevertsIfHealthFactorBroken() public {
+        // Arrange: Deposit Collateral
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+
+        // Calculate Unsafe Mint Amount
+        (, int256 price,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
+        // This amount will break the health factor
+        uint256 unsafeAmountToMint =
+            ((AMOUNT_COLLATERAL * (uint256(price) * dsce.getAdditionalFeedPrecision())) / dsce.getPrecision()) + 1;
+
+        uint256 expectedHealthFactor =
+            dsce.calculateHealthFactor(unsafeAmountToMint, dsce.getUsdValue(weth, AMOUNT_COLLATERAL));
+
+        // Act & Assert: Expect Health Factor to Break and Revert
+        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHealthFactor));
+        dsce.mintDsc(unsafeAmountToMint);
+
+        vm.stopPrank();
+    }
+
+    function testMintDscUpdatesUserBalance() public {
+        // Arrange: Deposit Collateral
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+
+        // Act: Mint DSC
+        dsce.mintDsc(AMOUNT_TO_MINT);
+
+        // Assert: Check if the user balance is equal to the minted amount
+        uint256 userBalance = dsc.balanceOf(USER);
+        assertEq(userBalance, AMOUNT_TO_MINT, "User balance should be equal to the minted amount");
+
+        vm.stopPrank();
+    }
 }
