@@ -267,8 +267,7 @@ contract DSCEngineTest is Test {
     modifier mintedDsc() {
         vm.startPrank(USER);
         ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
-        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
-        dsce.mintDsc(AMOUNT_TO_MINT);
+        dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_TO_MINT);
         _;
         vm.stopPrank();
     }
