@@ -259,4 +259,83 @@ contract DSCEngineTest is Test {
 
         vm.stopPrank();
     }
+
+    ///////////////////////////////////
+    // burnDsc Tests                 //
+    ///////////////////////////////////
+
+    modifier mintedDsc() {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+        dsce.mintDsc(AMOUNT_TO_MINT);
+        _;
+        vm.stopPrank();
+    }
+
+    function testBurnDscRevertsIfAmountIsZero() public mintedDsc {
+        // Act & Assert: Try to burn 0 DSC and expect revert
+        vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
+        dsce.burnDsc(0);
+    }
+
+    function testBurnDscUpdatesDSCMinted() public mintedDsc {
+        // Confirm initial DSC minted
+        (uint256 totalDscMintedBefore,) = dsce.getAccountInformation(USER);
+        assertEq(totalDscMintedBefore, AMOUNT_TO_MINT, "Initial DSC minted should be equal to the amount minted");
+
+        // User needs to approve DSCEngine to spend DSC before burning
+        dsc.approve(address(dsce), AMOUNT_TO_MINT);
+
+        // Act: Burn half of the minted DSC
+        uint256 amountToBurn = AMOUNT_TO_MINT / 2;
+        dsce.burnDsc(amountToBurn);
+
+        // Assert: Check if s_DSCMinted is reduced by the burned amount
+        (uint256 totalDscMintedAfter,) = dsce.getAccountInformation(USER);
+        uint256 expectedRemainingDsc = AMOUNT_TO_MINT - amountToBurn;
+        assertEq(totalDscMintedAfter, expectedRemainingDsc, "s_DSCMinted should be reduced by the burned amount");
+    }
+
+    function testBurnDscUpdatesBalances() public mintedDsc {
+        // Arrange: Approve DSCEngine to spend DSC
+        dsc.approve(address(dsce), AMOUNT_TO_MINT);
+
+        // Record initial balances
+        uint256 userBalanceBefore = dsc.balanceOf(USER);
+        uint256 contractBalanceBefore = dsc.balanceOf(address(dsce));
+
+        // Act: Burn half of the minted DSC
+        uint256 amountToBurn = AMOUNT_TO_MINT / 2;
+        dsce.burnDsc(amountToBurn);
+
+        // Assert: Check User Balance
+        uint256 userBalanceAfter = dsc.balanceOf(USER);
+        uint256 expectedUserBalance = userBalanceBefore - amountToBurn;
+        assertEq(userBalanceAfter, expectedUserBalance, "User balance should be reduced by the burned amount");
+
+        // Assert: Check Contract Balance
+        uint256 contractBalanceAfter = dsc.balanceOf(address(dsce));
+        assertEq(contractBalanceAfter, contractBalanceBefore, "Contract balance should remain unchanged after burning");
+    }
+
+    function testBurnDscFullAmount() public mintedDsc {
+        // Arrange: Approve DSCEngine to spend the full amount of DSC
+        dsc.approve(address(dsce), AMOUNT_TO_MINT);
+
+        // Confirm initial DSC minted
+        (uint256 totalDscMintedBefore,) = dsce.getAccountInformation(USER);
+        assertEq(totalDscMintedBefore, AMOUNT_TO_MINT, "Initial DSC minted should be equal to the amount minted");
+
+        // Act: Burn the full amount of DSC
+        dsce.burnDsc(AMOUNT_TO_MINT);
+
+        // Assert: Check User Balance is Zero
+        uint256 userBalanceAfter = dsc.balanceOf(USER);
+        assertEq(userBalanceAfter, 0, "User balance should be zero after burning full amount");
+
+        // Assert: Check s_DSCMinted is Zero
+        (uint256 totalDscMintedAfter,) = dsce.getAccountInformation(USER);
+        assertEq(totalDscMintedAfter, 0, "s_DSCMinted should be zero after burning full amount");
+    }
 }
