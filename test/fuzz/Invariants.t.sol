@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.19;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {StdInvariant} from "forge-std/StdInvariant.sol";
 import {DeployDSC} from "../../script/DeployDSC.s.sol";
 import {DSCEngine} from "../../src/DSCEngine.sol";
@@ -36,9 +36,10 @@ contract InvariantsTest is StdInvariant, Test {
         uint256 wethValue = dsce.getUsdValue(weth, totalWethDeposited);
         uint256 wbtcValue = dsce.getUsdValue(wbtc, totalWbtcDeposited);
 
-        console.log("totalSupply: ", totalSupply);
-        console.log("wethValue: ", wethValue);
-        console.log("wbtcValue: ", wbtcValue);
+        console2.log("totalSupply: ", totalSupply);
+        console2.log("wethValue: ", wethValue);
+        console2.log("wbtcValue: ", wbtcValue);
+        console2.log("Times Mint Called: ", handler.getTimesMintCalled());
 
         // Now that all tests are passing, we will never make this invariant false
         assert(wethValue + wbtcValue >= totalSupply);

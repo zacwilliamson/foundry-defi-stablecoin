@@ -11,5 +11,6 @@ runs = 1000
 depth = 128
 fail_on_revert = true
 show_logs = true
+log_bounds = false
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

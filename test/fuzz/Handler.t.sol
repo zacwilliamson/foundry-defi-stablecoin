@@ -15,6 +15,8 @@ contract Handler is Test {
     ERC20Mock wbtc;
 
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
+    uint256 timesMintCalled;
+    address[] usersWithCollateral;
 
     constructor(DSCEngine _engine, DecentralizedStableCoin _dsc) {
         dsce = _engine;
@@ -30,13 +32,13 @@ contract Handler is Test {
         amountCollateral = bound(amountCollateral, 1, MAX_DEPOSIT_SIZE);
         ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
 
-        // mint and approve!
         vm.startPrank(msg.sender);
         collateral.mint(msg.sender, amountCollateral);
         collateral.approve(address(dsce), amountCollateral);
-
         dsce.depositCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
+
+        usersWithCollateral.push(msg.sender);
     }
 
     function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
@@ -51,21 +53,30 @@ contract Handler is Test {
         dsce.redeemCollateral(address(collateral), amountCollateral);
     }
 
-    function mintDsc(uint256 amount) public {
-        (uint256 totalDscMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(msg.sender);
+    // We should only mint dsc if the amount is less than the collateral
+    function mintDsc(uint256 amount, uint256 addressSeed) public {
+        if (usersWithCollateral.length == 0) {
+            return;
+        }
 
-        int256 maxDscToMint = (int256(collateralValueInUsd) / 2) - int256(totalDscMinted);
+        address sender = usersWithCollateral[addressSeed % usersWithCollateral.length];
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(sender);
+
+        uint256 maxDscToMint = (collateralValueInUsd / 2) - totalDscMinted;
         if (maxDscToMint < 0) {
             return;
         }
-        amount = bound(amount, 0, uint256(maxDscToMint));
-        if (amount == 0) {
+
+        amount = bound(amount, 0, maxDscToMint);
+        if (amount <= 0) {
             return;
         }
 
-        vm.startPrank(msg.sender);
+        vm.startPrank(sender);
         dsce.mintDsc(amount);
         vm.stopPrank();
+
+        timesMintCalled++;
     }
 
     // Helper Functions
@@ -74,5 +85,9 @@ contract Handler is Test {
             return weth;
         }
         return wbtc;
+    }
+
+    function getTimesMintCalled() public view returns (uint256) {
+        return timesMintCalled;
     }
 }
